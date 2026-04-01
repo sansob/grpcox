@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine3.23 AS builder
 
 ENV GO111MODULE=on
 
@@ -9,7 +9,7 @@ COPY . ./
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o grpcox grpcox.go
 
 
-FROM alpine
+FROM alpine:3.23.3
 
 COPY ./index /index
 COPY --from=builder /src/grpcox ./

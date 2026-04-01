@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -267,7 +268,7 @@ func (r *Resource) Invoke(ctx context.Context, metadata []string, symbol string,
 	}
 
 	if h.Status.Code() != codes.OK {
-		return "", end, fmt.Errorf(h.Status.Message())
+		return "", end, errors.New(h.Status.Message())
 	}
 
 	return resultBuffer.String(), end, nil
