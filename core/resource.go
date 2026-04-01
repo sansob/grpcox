@@ -16,6 +16,7 @@ import (
 
 	"github.com/fullstorydev/grpcurl"
 	"github.com/jhump/protoreflect/desc"
+	"github.com/jhump/protoreflect/desc/protoprint"
 	"github.com/jhump/protoreflect/grpcreflect"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -176,14 +177,7 @@ func (r *Resource) Describe(symbol string) (string, string, error) {
 		result = txt
 
 		if dsc, ok := dsc.(*desc.MessageDescriptor); ok {
-			// for messages, also show a template in JSON, to make it easier to
-			// create a request to invoke an RPC
-			tmpl := grpcurl.MakeTemplate(dsc)
-			_, formatter, err := grpcurl.RequestParserAndFormatterFor(grpcurl.Format("json"), r.descSource, true, false, nil)
-			if err != nil {
-				return "", "", err
-			}
-			str, err := formatter(tmpl)
+			_, str, err := r.describeMessage(dsc)
 			if err != nil {
 				return "", "", err
 			}
@@ -192,6 +186,56 @@ func (r *Resource) Describe(symbol string) (string, string, error) {
 	}
 
 	return result, template, nil
+}
+
+// DescribeMethodInput resolves a method symbol to its request message descriptor text
+// and a JSON template generated from the actual input message descriptor.
+func (r *Resource) DescribeMethodInput(symbol string) (string, string, error) {
+	err := r.openDescriptor()
+	if err != nil {
+		return "", "", err
+	}
+	defer r.closeDescriptor()
+
+	return r.describeMethodInputFromSource(symbol)
+}
+
+func (r *Resource) describeMethodInputFromSource(symbol string) (string, string, error) {
+	if strings.HasPrefix(symbol, ".") {
+		symbol = symbol[1:]
+	}
+
+	dsc, err := r.descSource.FindSymbol(symbol)
+	if err != nil {
+		return "", "", err
+	}
+
+	method, ok := dsc.(*desc.MethodDescriptor)
+	if !ok {
+		return "", "", fmt.Errorf("symbol %q is not a method", symbol)
+	}
+
+	return r.describeMessage(method.GetInputType())
+}
+
+func (r *Resource) describeMessage(input *desc.MessageDescriptor) (string, string, error) {
+	printer := protoprint.Printer{Compact: false}
+	schema, err := printer.PrintProtoToString(input)
+	if err != nil {
+		return "", "", err
+	}
+
+	tmpl := grpcurl.MakeTemplate(input)
+	_, formatter, err := grpcurl.RequestParserAndFormatterFor(grpcurl.Format("json"), r.descSource, true, false, nil)
+	if err != nil {
+		return "", "", err
+	}
+	template, err := formatter(tmpl)
+	if err != nil {
+		return "", "", err
+	}
+
+	return schema, template, nil
 }
 
 // Invoke - invoking gRPC function
@@ -324,22 +368,22 @@ func (r *Resource) AddProtos(protos []Proto) error {
 // prepareImport transforming proto import into local path
 // with exception to google proto import as it won't cause any problem
 func prepareImport(proto []byte) []byte {
-	const pattern = `import ".+`
-	result := string(proto)
-
+	const pattern = `(?m)^(\s*import\s+(?:public\s+|weak\s+)?")([^"]+)(".*)$`
 	re := regexp.MustCompile(pattern)
-	matchs := re.FindAllString(result, -1)
-	for _, match := range matchs {
-		if strings.Contains(match, "\"google/") {
-			continue
+
+	result := re.ReplaceAllStringFunc(string(proto), func(line string) string {
+		matches := re.FindStringSubmatch(line)
+		if len(matches) != 4 {
+			return line
 		}
-		name := strings.Split(match, "/")
-		if len(name) < 2 {
-			continue
+
+		importPath := matches[2]
+		if strings.HasPrefix(importPath, "google/") {
+			return line
 		}
-		importString := `import "` + name[len(name)-1]
-		result = strings.Replace(result, match, importString, -1)
-	}
+
+		return matches[1] + filepath.Base(importPath) + matches[3]
+	})
 
 	return []byte(result)
 }

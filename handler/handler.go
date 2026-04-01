@@ -120,8 +120,8 @@ func (h *Handler) getListsWithProto(w http.ResponseWriter, r *http.Request) {
 	useTLS, _ := strconv.ParseBool(r.Header.Get("use_tls"))
 	restart, _ := strconv.ParseBool(r.FormValue("restart"))
 
-	// limit upload file to 5mb
-	err := r.ParseMultipartForm(5 << 20)
+	// allow larger proto bundles so imported proto3 schemas are less likely to fail.
+	err := r.ParseMultipartForm(32 << 20)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -187,20 +187,7 @@ func (h *Handler) describeFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// get param
-	result, _, err := res.Describe(funcName)
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	match := reGetFuncArg.FindStringSubmatch(result)
-	if len(match) < 2 {
-		writeError(w, fmt.Errorf("Invalid Func Type"))
-		return
-	}
-
-	// describe func
-	result, template, err := res.Describe(match[1])
+	result, template, err := res.DescribeMethodInput(funcName)
 	if err != nil {
 		writeError(w, err)
 		return
