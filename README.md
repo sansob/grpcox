@@ -11,11 +11,11 @@ turn [gRPCurl](https://github.com/fullstorydev/grpcurl) into web based UI, extre
 ## Installation
 ### Docker
 ```shell
-docker pull gusaul/grpcox:latest
+docker pull sansob/grpcox:latest
 ```
 then run
 ```shell
-docker run -p 6969:6969 -v {ABSOLUTE_PATH_TO_LOG}/log:/log -d gusaul/grpcox
+docker run -p 6969:6969 -v {ABSOLUTE_PATH_TO_LOG}/log:/log -d sansob/grpcox:latest
 ```
 
 ### Docker Compose
@@ -42,6 +42,3 @@ configure app preferences by editing `config.env` file
 | BIND_ADDR       | ip:port to bind service                     | string |  |
 
 set value `0 (zero)` to disable auto close idle connection.
-
-## Demo
-![gRPCox Demo](https://raw.githubusercontent.com/gusaul/grpcox/master/index/img/demogrpcox.gif)
