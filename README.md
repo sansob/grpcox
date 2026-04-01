@@ -27,7 +27,7 @@ if you're using docker and want to connect gRPC on your local machine, then use
 <br/>`host.docker.internal:<your gRPC port>` instead of `localhost`
 
 ### Golang
-if you have golang installed on your local machine, just run command
+if you have Go 1.21+ installed on your local machine, just run command
 ```shell
 make start
 ```
